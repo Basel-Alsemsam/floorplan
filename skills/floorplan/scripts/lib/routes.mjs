@@ -193,8 +193,8 @@ export function matchCalls(files, routes) {
       // as much evidence as the best match, whatever the length: /tasks/:id could be /tasks/{task} or /api/v2/tasks/{task}
       const alts = hits[0].weak ? [] : all.filter((h) => h.literal === hits[0].literal);
       pending.push({ f, call, hits, alts });
-      // learn a caller's base only from calls nothing else could answer
-      if (!hits[0].weak && new Set(alts.map((h) => h.r.file)).size === 1) for (const k of [f.path, dir(f.path), app(f.path)]) learn(k, hits[0].prefix);
+      // learn a caller's base only from calls nothing else could answer: every equally good match agrees on it
+      if (!hits[0].weak && new Set(hits.map((h) => h.r.file)).size === 1 && new Set(alts.map((h) => h.prefix)).size === 1) for (const k of [f.path, dir(f.path), app(f.path)]) learn(k, hits[0].prefix);
     }
   }
   const top = (key) => { const m = learned.get(key); return m ? [...m.entries()].sort((a, b) => b[1] - a[1])[0][0] : null; };
@@ -210,7 +210,7 @@ export function matchCalls(files, routes) {
       if (viaBase.length) keep = viaBase;
     }
     // weak matches need the caller's own track record, not a neighbour's
-    if (hits[0].weak) { const own = top(f.path); keep = own == null ? [] : hits.filter((h) => h.prefix === own); if (!keep.length) continue; }
+    if (hits[0].weak) { keep = own == null ? [] : hits.filter((h) => h.prefix === own); if (!keep.length) continue; }
     // no method visible at the call site: fetch's default is GET
     if (!call.method && keep.some((h) => h.r.method === 'GET') && new Set(keep.map((h) => h.r.method)).size > 1) keep = keep.filter((h) => h.r.method === 'GET' || h.r.method === 'ANY');
     if (new Set(keep.map((h) => h.r.file)).size > 1) {
